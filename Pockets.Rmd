@@ -193,14 +193,14 @@ new_cp <- seq(from = min(pocket$cotton_percent), to = max(pocket$cotton_percent)
 grid_data <- expand_grid(price = new_price,
                          cotton_percent = new_cp)
 
-grid_data$menWoman <- predict(object = model_knn, newdata = as.data.frame(grid_data))
+grid_data$menWomen <- predict(object = model_knn, newdata = as.data.frame(grid_data))
 
-
-#ggplot(aes(x = price, y = cotton_percent, color = menWomen, fill = menWomen)) + 
-#geom_point(data = grid_data, alpha = 0.3) + 
-#geom_point(alpha = 0.7, pch = 21, color = "black") + 
-#scale_color_brewer(type = "qual") + 
-#scale_fill_brewer(type = "qual")
+pocket %>%
+  ggplot(aes(x = price, y = cotton_percent, color = menWomen, fill = menWomen)) + 
+  geom_point(data = grid_data, alpha = 0.3) + 
+  geom_point(alpha = 0.7, pch = 21, color = "black") + 
+  scale_color_brewer(type = "qual") + 
+  scale_fill_brewer(type = "qual")
 
 
 ```
