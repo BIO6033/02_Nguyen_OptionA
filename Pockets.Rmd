@@ -1,0 +1,214 @@
+---
+title: "Pocket"
+author: "Jonathan Nguyen"
+date: "30/10/2019"
+output: html_document
+---
+
+#Option A
+- Refaire le analyse du k-NN avec les données sur les poches: read_csv("https://raw.githubusercontent.com/the-pudding/data/master/pockets/measurements.csv")
+- Utilisez la cross validation pour sélectionner une valeur de K
+- calculer une matrice de confusion en utilisant cette valeur
+- Visualizer les prédictions du modèle
+
+- knn pour voir si homme ou femme selon prix et pourcentage de cotton
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load_packages, message = FALSE}
+library(tidyverse)
+library(forcats)
+library(caret)
+```
+
+```{r reading}
+pocket_read <- read_csv("https://raw.githubusercontent.com/the-pudding/data/master/pockets/measurements.csv")
+pocket_read
+```
+
+```{r getting cotton_percent}
+pocket_withcotton <- mutate(pocket_read, cotton_percent = substr(pocket_read$fabric, start = 1, stop = 2)) #prend 2 premiers caractères du string qui sont le pourcentage du cotton
+pocket_withcotton
+pocket <- mutate(pocket_withcotton, cotton_percent = as.double(ifelse(cotton_percent == "10", "100", cotton_percent)))
+pocket #maintenant les pourcentage de cotton sont des chiffre. yay!
+                          
+#replace(pocket_withcotton, pocket_withcotton$cotton_percent == "10", "100")
+
+```
+```{r voir nos données}
+cotton_price <- pocket %>%  
+  ggplot(aes(x = price, y = cotton_percent, color = menWomen)) + 
+    geom_point(alpha = 0.5) +
+    labs(color = "menWomen")
+cotton_price
+```
+```{r knn préliminaire}
+pocket_train <- pocket %>% 
+  select("price", "cotton_percent")
+head(pocket_train)
+
+pocket_labels <- pocket %>% 
+  select(menWomen) %>% 
+  unlist()
+head(pocket_labels)
+
+k <- data.frame(k = 5)
+model_knn <- train(x = data.frame(pocket_train), y = pocket_labels, method = 'knn', tuneGrid = k)
+
+new_obs <- data.frame(price = 77, cotton_percent = 70)
+predict(object = model_knn, new_obs)
+```
+
+```{r create the train/test split}
+pocket <- pocket %>% 
+  mutate(menWomen = as.factor(menWomen))
+
+set.seed(101)
+set_rows <- pocket %>% 
+  select(menWomen) %>% 
+  unlist() %>% 
+  createDataPartition(p = .75, list = FALSE)
+head(set_rows)
+
+training_set <- pocket %>% slice(set_rows)
+test_set <- pocket %>% slice(-set_rows)
+glimpse(training_set)
+glimpse(test_set)
+```
+
+```{r train the classifier}
+X_train <- training_set %>% 
+  select(price, cotton_percent) %>% 
+  data.frame()
+Y_train <- training_set %>% 
+  select(menWomen) %>% 
+  unlist()
+k = data.frame (k=3)
+
+set.seed(101)
+model_knn <- train(x = X_train, y = Y_train, method = "knn", tuneGrid = k)
+model_knn
+```
+
+```{r predict the labels in the test set}
+X_test <-  test_set %>% 
+  select(price, cotton_percent) %>% 
+  data.frame()
+
+Y_test_predicted <-  predict(object = model_knn, X_test)
+head(Y_test_predicted)
+```
+
+```{r compute the accuracy}
+Y_test <-  test_set %>% 
+  select(menWomen) %>% 
+  unlist()
+head(Y_test)
+
+model_quality <-  confusionMatrix(data = Y_test_predicted, reference = Y_test)
+model_quality
+
+model_quality$overall[1]
+
+```
+
+```{r cross-validation}
+
+X_train_total <-  X_train
+Y_train_total <-  Y_train
+
+accuracies <- c()
+for (i in 1:5){
+  set.seed(i)
+  set_rows <-  Y_train_total %>% 
+    createDataPartition(p = 0.75, list = FALSE)
+  
+  X_train <- X_train_total %>% slice(set_rows)
+  Y_train <-  Y_train_total[set_rows]
+  X_validation <-  X_train_total %>% slice(-set_rows)
+  Y_validation <- Y_train_total[-set_rows]
+  
+  k = data.frame(k = 3)
+  model_knn <- train(x = X_train, y = Y_train, method = "knn", tuneGrid = k)
+  Y_validation_predicted <- predict(object = model_knn, X_validation)
+  
+  model_quality <- confusionMatrix(data = Y_validation_predicted, reference = Y_validation)
+  accuracies <- append(accuracies, model_quality$overall[1])
+}
+accuracies
+
+
+```
+
+```{r train control}
+train_control <- trainControl(method = "cv", number = 5)
+
+set.seed(1001)
+k = data.frame (k = 3)
+knn_model_cv_5fold <- train(x = X_train_total, y = Y_train_total, method = "knn", tuneGrid = k, trControl = train_control)
+knn_model_cv_5fold
+
+train_control <- trainControl(method = "cv", number = 10)
+set.seed(1001)
+knn_model_cv_10fold <- train(x = X_train_total, y = Y_train_total, method = "knn", tuneGrid = k, trControl = train_control)
+knn_model_cv_10fold
+
+
+```
+```{r parameter value selection}
+train_control <- trainControl(method = "cv", number = 10)
+k = data.frame(k = c(1,3,5,7,9,11,13,15,17))
+
+set.seed(1030)
+knn_model_cv_10fold <- train(x = X_train_total, y = Y_train_total, method = "knn", tuneGrid = k, trControl = train_control)
+knn_model_cv_10fold
+
+accuracies <- knn_model_cv_10fold$results
+accuracies
+
+accuracy_vs_k <- ggplot(accuracies, aes(x = k, y = Accuracy)) +
+  geom_point() +
+  geom_line()
+accuracy_vs_k
+```
+
+```{r fitting}
+train_control <- trainControl(method="cv", number = 10)
+k_lots = data.frame(k = seq(from = 1, to = 385, by = 10))
+set.seed(1111)
+knn_model_cv_10fold_lots <- train(x = X_train_total, y = Y_train_total, method = "knn", tuneGrid = k_lots, trControl = train_control)
+accuracies_lots <- knn_model_cv_10fold_lots$results
+accuracy_vs_k_lots <- ggplot(accuracies_lots, aes(x = k, y = Accuracy)) +
+  geom_point() +
+  geom_line()
+accuracy_vs_k_lots
+```
+
+```{r}
+new_price <- seq(from = min(pocket$price), to = max(pocket$price), length.out = 200)
+new_cp <- seq(from = min(pocket$cotton_percent), to = max(pocket$cotton_percent), length.out = 200)
+
+grid_data <- expand_grid(price = new_price,
+                         cotton_percent = new_cp)
+
+grid_data$menWoman <- predict(object = model_knn, newdata = as.data.frame(grid_data))
+
+
+ggplot(aes(x = price, y = cotton_percent, color = menWomen, fill = menWomen)) + 
+geom_point(data = grid_data, alpha = 0.3) + 
+geom_point(alpha = 0.7, pch = 21, color = "black") + 
+scale_color_brewer(type = "qual") + 
+scale_fill_brewer(type = "qual")
+
+
+```
+
+
+#Améliorations
+- Scaling
+- Balancing
+#Bibliographie
+https://stackoverflow.com/questions/38750535/extract-the-first-2-characters-in-a-string
+https://community.rstudio.com/t/how-do-i-filter-a-variable-by-a-value-and-replace-all-these-values/3222
+https://github.com/tidyverse/dplyr/issues/425
