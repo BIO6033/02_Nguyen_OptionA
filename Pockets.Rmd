@@ -12,6 +12,7 @@ output: html_document
 - Visualizer les prédictions du modèle
 
 - knn pour voir si homme ou femme selon prix et pourcentage de cotton
+- ce project est une application du code du document de UBC, mais pour le jeu de données des poches
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -195,11 +196,11 @@ grid_data <- expand_grid(price = new_price,
 grid_data$menWoman <- predict(object = model_knn, newdata = as.data.frame(grid_data))
 
 
-ggplot(aes(x = price, y = cotton_percent, color = menWomen, fill = menWomen)) + 
-geom_point(data = grid_data, alpha = 0.3) + 
-geom_point(alpha = 0.7, pch = 21, color = "black") + 
-scale_color_brewer(type = "qual") + 
-scale_fill_brewer(type = "qual")
+#ggplot(aes(x = price, y = cotton_percent, color = menWomen, fill = menWomen)) + 
+#geom_point(data = grid_data, alpha = 0.3) + 
+#geom_point(alpha = 0.7, pch = 21, color = "black") + 
+#scale_color_brewer(type = "qual") + 
+#scale_fill_brewer(type = "qual")
 
 
 ```
@@ -208,6 +209,7 @@ scale_fill_brewer(type = "qual")
 #Améliorations
 - Scaling
 - Balancing
+
 #Bibliographie
 https://stackoverflow.com/questions/38750535/extract-the-first-2-characters-in-a-string
 https://community.rstudio.com/t/how-do-i-filter-a-variable-by-a-value-and-replace-all-these-values/3222
